@@ -3,7 +3,7 @@
 #include <random>
 #include <chrono>
 
-#define N 4096
+#define N 4097
 #define K 256
 #define DIM 2
 #define MAX_ITER 256
@@ -113,7 +113,7 @@ void kMeans(float * points, float * centroids, int * ids) {
 	for (int i = 0; i < MAX_ITER && *hasChanged; i++) {
 		*hasChanged = false;
 		CUDA_CHECK_RETURN(cudaMemcpy((void **) devHasChanged, (void **) hasChanged, sizeof(bool), cudaMemcpyHostToDevice));
-		assignCentroid<<<N/512, 512>>>(points, centroids, ids, devHasChanged);
+		assignCentroid<<<ceil(N/(float)512), 512>>>(points, centroids, ids, devHasChanged);
 		cudaDeviceSynchronize();
 		moveCentroid<<<1, K>>>(points, centroids, ids);
 		cudaDeviceSynchronize();
@@ -140,7 +140,7 @@ int main(int argc, char **argv) {
 	CUDA_CHECK_RETURN(cudaMalloc((void **) &devIds, N * sizeof(float)));
 
 	int time = 0;
-	int numTests = 10;
+	int numTests = 16;
 	for (int i = 0; i < numTests; i++) {
 		// Generate points and centroids on host
 		generatePoints(points, gen);
@@ -162,8 +162,10 @@ int main(int argc, char **argv) {
 		time += elapsed.count();
 
 		// Copy data back to host
-		/*CUDA_CHECK_RETURN(cudaMemcpy((void **) centroids, (void **) devCentroids, K * DIM * sizeof(float), cudaMemcpyDeviceToHost));
-		CUDA_CHECK_RETURN(cudaMemcpy((void **) ids, (void **) devIds, N * sizeof(int), cudaMemcpyDeviceToHost));*/
+		/*
+		CUDA_CHECK_RETURN(cudaMemcpy((void **) centroids, (void **) devCentroids, K * DIM * sizeof(float), cudaMemcpyDeviceToHost));
+		CUDA_CHECK_RETURN(cudaMemcpy((void **) ids, (void **) devIds, N * sizeof(int), cudaMemcpyDeviceToHost));
+		*/
 	}
 	std::cout << "Time: "<< time/numTests << std::endl;
 
@@ -171,4 +173,10 @@ int main(int argc, char **argv) {
 	//printIds(ids);
 	//printPoints(centroids, K);
 
+	free(points);
+	free(centroids);
+	free(ids);
+	cudaFree(devPoints);
+	cudaFree(devCentroids);
+	cudaFree(devIds);
 }
